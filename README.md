@@ -4,6 +4,10 @@
 
 A demonstration application that streams logs and metrics directly to Datadog's API endpoints. This application showcases how to integrate with Datadog's monitoring platform and visualize the data through Datadog dashboards.
 
+## Dashboard Example
+
+![image](https://github.com/user-attachments/assets/561d941c-a705-4add-9c31-5c0b87c7eced)
+
 ## Overview
 
 This application demonstrates how to:
