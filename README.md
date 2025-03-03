@@ -10,7 +10,7 @@ A demonstration application that streams logs and metrics directly to Datadog's 
 
 ## Overview
 
-This application was created with the assistance of Claude Sonnet 3.7 through the agent built into the new Windows version of the Warp terminal. While testing the Warp terminal, I asked it to help me create a simple application that would stream logs and metrics directly to Datadog's API endpoints. This is the result
+This application was created with the assistance of Claude Sonnet 3.7 through the agent built into the new Windows version of the Warp terminal. While testing the [Warp](https://www.warp.dev/) terminal, I asked it to help me create a simple application that would stream logs and metrics directly to Datadog's API endpoints. This is the result
 
 This application demonstrates how to:
 
@@ -39,10 +39,10 @@ This application demonstrates how to:
 
 ### Run the application locally
 
-- Create a .env file and add your API key and APP key. Save in the root directory of the project.
+- Create a `.env` file and add your API key and APP key. Save in the root directory of the project.
 - Run the application from your terminal:
    ```bash
-   python app.py
+   python server.py
    ```
 
 ## Relevant Documentation
