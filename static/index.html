@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Datadog Streaming Demo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles beyond Tailwind */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .animate-pulse-slow {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        .indicator-dot {
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-left: 8px;
+        }
+        /* Focus styles for better keyboard navigation */
+        *:focus-visible {
+            outline: 3px solid #d8b4fe !important; /* purple-300 for visibility */
+            outline-offset: 2px;
+        }
+        /* Skip to content link */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 0;
+            background: #9333ea;
+            color: white;
+            padding: 8px;
+            z-index: 100;
+            transition: top 0.2s;
+        }
+        .skip-link:focus {
+            top: 0;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white h-screen">
+    <!-- Skip to content link for keyboard users -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- Header -->
+        <header class="mb-8">
+            <h1 class="text-3xl font-bold text-center text-purple-500">
+                Datadog Streaming Demo
+            </h1>
+            <p class="text-center text-gray-300 mt-2">Stream logs and metrics to your Datadog dashboard</p>
+        </header>
+        
+        <!-- Main Content -->
+        <main id="main-content" class="bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
+            <div class="grid grid-cols-1 gap-6">
+                <!-- Data Type Selection -->
+                <div class="mb-4">
+                    <label for="dataType" class="block text-sm font-medium text-gray-300 mb-2">Choose Data Type</label>
+                    <div class="relative">
+                        <select id="dataType" class="block w-full bg-gray-700 border border-gray-600 rounded-md py-2 px-3 text-gray-300 appearance-none focus:outline-none focus:ring-2 focus:ring-purple-500">
+                            <option value="logs">Logs</option>
+                            <option value="metrics">Metrics</option>
+                        </select>
+                        <div class="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none" aria-hidden="true">
+                            <svg class="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Controls -->
+                <div class="flex justify-center mb-6">
+                    <button id="streamBtn" class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-6 rounded-md focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 focus:ring-offset-gray-800 transition-colors duration-200">
+                        Start Streaming
+                    </button>
+                </div>
+                
+                <!-- Status Display -->
+                <div class="bg-gray-700 rounded-md p-4">
+                    <h3 class="text-lg font-medium text-gray-300 mb-2">Streaming Status</h3>
+                    <div class="flex items-center">
+                        <div id="statusText" class="text-gray-300" aria-live="polite">Ready to stream data</div>
+                        <span id="statusIndicator" class="indicator-dot bg-gray-500 ml-2" role="status" aria-label="Status indicator"></span>
+                    </div>
+                    
+                    <!-- Timer and Count Display -->
+                    <div class="mt-4 grid grid-cols-2 gap-4">
+                        <div class="bg-gray-800 rounded-md p-3">
+                            <div class="text-sm text-gray-300">Time Remaining</div>
+                            <div id="timeRemaining" class="text-xl font-bold text-white" aria-live="polite">0s</div>
+                        </div>
+                        <div class="bg-gray-800 rounded-md p-3">
+                            <div class="text-sm text-gray-300">Items Sent</div>
+                            <div id="itemsSent" class="text-xl font-bold text-white" aria-live="polite">0</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Log Display -->
+                <div class="mt-4">
+                    <h3 class="text-lg font-medium text-gray-300 mb-2">Activity Log</h3>
+                    <div id="activityLog" class="bg-gray-700 rounded-md p-3 h-40 overflow-y-auto font-mono text-sm" role="log" aria-live="polite" aria-atomic="false">
+                        <div class="text-gray-300">Streaming activity will appear here...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Footer -->
+        <footer class="text-center text-gray-400 text-sm">
+            <p>Streaming will automatically stop after 60 seconds</p>
+        </footer>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const dataTypeSelect = document.getElementById('dataType');
+            const streamBtn = document.getElementById('streamBtn');
+            const statusText = document.getElementById('statusText');
+            const statusIndicator = document.getElementById('statusIndicator');
+            const timeRemaining = document.getElementById('timeRemaining');
+            const itemsSent = document.getElementById('itemsSent');
+            const activityLog = document.getElementById('activityLog');
+            
+            let isStreaming = false;
+            let streamInterval = null;
+            let countdown = 60;
+            let sentCount = 0;
+            
+            function updateActivityLog(message) {
+                const timestamp = new Date().toLocaleTimeString();
+                const logEntry = document.createElement('div');
+                logEntry.className = 'mb-1';
+                logEntry.innerHTML = `<span class="text-gray-500">[${timestamp}]</span> <span class="text-green-400">${message}</span>`;
+                activityLog.appendChild(logEntry);
+                activityLog.scrollTop = activityLog.scrollHeight;
+            }
+            
+            function startStreaming() {
+                isStreaming = true;
+                countdown = 60;
+                sentCount = 0;
+                
+                statusText.textContent = "Streaming data...";
+                statusIndicator.className = "indicator-dot bg-green-500 animate-pulse-slow";
+                streamBtn.textContent = "Stop Streaming";
+                streamBtn.classList.remove('bg-purple-600', 'hover:bg-purple-700');
+                streamBtn.classList.add('bg-red-600', 'hover:bg-red-700');
+                
+                itemsSent.textContent = "0";
+                timeRemaining.textContent = `${countdown}s`;
+                
+                updateActivityLog(`Started streaming ${dataTypeSelect.value} data`);
+                
+                // Stream data every second
+                streamInterval = setInterval(() => {
+                    countdown--;
+                    timeRemaining.textContent = `${countdown}s`;
+                    
+                    // Send data to Datadog via the proxy server
+                    const dataType = dataTypeSelect.value;
+                    fetch(`/proxy/${dataType}`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(dataType === 'metrics' ? {
+                            series: [{
+                                metric: 'warpdemo.sample.metric.1',
+                                type: 0,
+                                points: [{
+                                    timestamp: Math.floor(new Date().getTime() / 1000),
+                                    value: Math.random()
+                                }],
+                                resources: [{
+                                    name: 'streaming-app',
+                                    type: 'demo'
+                                }]
+                            }]
+                        } : [{
+                            ddsource: 'WarpDemo',
+                            ddtags: 'env:staging,version:5.1',
+                            hostname: window.location.hostname,
+                            message: `Log message #${sentCount + 1} from streaming app`,
+                            service: 'demo-app'
+                        }])
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            sentCount++;
+                            itemsSent.textContent = sentCount;
+                            updateActivityLog(`Sent ${dataType} data packet #${sentCount}`);
+                        } else {
+                            return response.text().then(text => {
+                                let errorMsg = `Error: Server returned ${response.status}`;
+                                try {
+                                    const errorData = JSON.parse(text);
+                                    if (errorData.errors && errorData.errors.length > 0) {
+                                        errorMsg += ` - ${errorData.errors[0]}`;
+                                    }
+                                } catch (e) {
+                                    if (text) errorMsg += ` - ${text}`;
+                                }
+                                updateActivityLog(errorMsg);
+                                throw new Error(errorMsg);
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error("Streaming error:", error);
+                        updateActivityLog(`Error: ${error.message}`);
+                    });
+                    // Stop after 60 seconds
+                    if (countdown <= 0) {
+                        stopStreaming(true);
+                    }
+                }, 1000);
+            }
+            
+            function stopStreaming(timeout = false) {
+                isStreaming = false;
+                clearInterval(streamInterval);
+                
+                statusText.textContent = timeout ? "Timeout reached" : "Streaming stopped";
+                statusIndicator.className = "indicator-dot bg-gray-500";
+                streamBtn.textContent = "Start Streaming";
+                streamBtn.classList.remove('bg-red-600', 'hover:bg-red-700');
+                streamBtn.classList.add('bg-purple-600', 'hover:bg-purple-700');
+                
+                updateActivityLog(timeout ? 
+                    `Streaming completed after 60 seconds. Sent ${sentCount} ${dataTypeSelect.value} data packets.` : 
+                    `Manually stopped streaming. Sent ${sentCount} ${dataTypeSelect.value} data packets.`);
+            }
+            
+            // Event listener for the stream button
+            streamBtn.addEventListener('click', () => {
+                if (isStreaming) {
+                    stopStreaming();
+                } else {
+                    startStreaming();
+                }
+            });
+            
+            // Event listener for changing data type while streaming
+            dataTypeSelect.addEventListener('change', () => {
+                if (isStreaming) {
+                    updateActivityLog(`Switched to streaming ${dataTypeSelect.value} data`);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
